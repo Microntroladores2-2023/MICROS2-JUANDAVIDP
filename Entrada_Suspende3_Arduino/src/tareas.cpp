@@ -16,7 +16,7 @@ void Boton(void *pvParameters)
     velocidad_media
   };
 
-  uint8_t estado_maquina = velocidad_lenta;
+  uint8_t estado_maquina = velocidad_rapida;
 
   gpio_set_direction(PUSH_BUTTON_PIN, GPIO_MODE_INPUT);
 
