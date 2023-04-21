@@ -15,7 +15,7 @@ void Boton(void *pvParameters)
     resumen_BLINK,
     velocidad_media
   };
-
+  esp_task_wdt_add(NULL);
   uint8_t estado_maquina = velocidad_rapida;
 
   gpio_set_direction(PUSH_BUTTON_PIN, GPIO_MODE_INPUT);
@@ -23,12 +23,14 @@ void Boton(void *pvParameters)
   while (1)
   {
     // presiona boton y suelta
-    while (gpio_get_level(PUSH_BUTTON_PIN) == 0)
+    while (gpio_get_level(PUSH_BUTTON_PIN) == 0){
       vTaskDelay(10 / portTICK_PERIOD_MS); // boton presionado
-
-    while (gpio_get_level(PUSH_BUTTON_PIN) == 1)
+      esp_task_wdt_reset();
+    }
+    while (gpio_get_level(PUSH_BUTTON_PIN) == 1){
       vTaskDelay(10 / portTICK_PERIOD_MS); // boton sin presionar
-
+      esp_task_wdt_reset();
+    }
     switch (estado_maquina)
     {
     case velocidad_rapida:
@@ -57,7 +59,7 @@ void Boton(void *pvParameters)
       estado_maquina = velocidad_rapida;
       break;
     }
-
+    esp_task_wdt_reset();
     vTaskDelay(100 / portTICK_PERIOD_MS);
   }
 }
