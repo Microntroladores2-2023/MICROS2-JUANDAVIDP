@@ -3,12 +3,15 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "esp_log.h"
+#include "driver/gpio.h"
 #include "driver/uart.h"
-
 static QueueHandle_t uart0_queue;
 
 void protocolo1Serial(uint8_t *ByteArray, uint16_t Length);
-
+#define LedR 18
+#define LedG 19
+#define LedB 21
 #define tamBUFFER 1024
 
 //**************************************
@@ -31,9 +34,9 @@ void TareaEventosUART0(void *Parametro)
                 uart_read_bytes(UART_NUM_0, datoRX, evento.size, portMAX_DELAY);
                 // modbusSerial(datoRX, evento.size);
 
-                //protocolo1Serial(datoRX, evento.size);
+                protocolo1Serial(datoRX, evento.size);
 
-                uart_write_bytes(UART_NUM_0, (const char*) datoRX, evento.size);
+                uart_write_bytes(UART_NUM_0, (const char *)datoRX, evento.size);
 
                 // vTaskDelay(10 / portTICK_PERIOD_MS);
             }
@@ -67,10 +70,6 @@ void initUART0()
     xTaskCreatePinnedToCore(TareaEventosUART0, "Tarea_para_UART0", 1024 * 5, NULL, 12, NULL, 1);
 }
 
-void app_main()
-{
-    initUART0();
-}
 
 //**************************************
 //************* Funciones **************
@@ -79,26 +78,52 @@ void app_main()
 void protocolo1Serial(uint8_t *ByteArray, uint16_t Length)
 {
 
-    //uart_write_bytes(UART_NUM_0, (const char*) ByteArray, Length);
+    // uart_write_bytes(UART_NUM_0, (const char*) ByteArray, Length);
+      //for (size_t i = 0; i < evento.size - 2; i++)
+    //{
 
+        uint8_t estado = ByteArray[0]; // maquina de estado
 
-    uint8_t estado = ByteArray[0]; // maquina de estado
+        switch (estado)
+        {
+        case 'R':
+            gpio_set_level(LedR, 1);
+            gpio_set_level(LedG, 0);
+            gpio_set_level(LedB, 0);
+            break;
+        case 'G':
+            gpio_set_level(LedR, 0);
+            gpio_set_level(LedG, 1);
+            gpio_set_level(LedB, 0);
+            break;
+        case 'B':
+            gpio_set_level(LedR, 0);
+            gpio_set_level(LedG, 0);
+            gpio_set_level(LedB, 1);
+            break;
+        default:
+            gpio_set_level(LedR, 0);
+            gpio_set_level(LedG, 0);
+            gpio_set_level(LedB, 0);
 
-    switch (estado)
-    {
-    case 0:
+            break;
+        }
+    //}
+}
 
-        break;
+static void init_led(void)
+{
+    gpio_reset_pin(LedR);
+    gpio_set_direction(LedR, GPIO_MODE_OUTPUT);
+    gpio_reset_pin(LedG);
+    gpio_set_direction(LedG, GPIO_MODE_OUTPUT);
+    gpio_reset_pin(LedB);
+    gpio_set_direction(LedB, GPIO_MODE_OUTPUT);
+    
+}
 
-    case 1:
-
-        break;
-    case 2:
-
-        break;
-
-    case 3:
-
-        break;
-    }
+void app_main(void)
+{
+    init_led();
+    initUART0();
 }
