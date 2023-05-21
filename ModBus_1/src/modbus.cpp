@@ -10,7 +10,7 @@ UINT16_VAL MBDiscreteInputs;
 //************* Funciones **************
 //**************************************
 
-void modbusSerial(uint8_t *ByteArray, uint16_t Length)
+void modbusSerial(uint8_t *ByteArray, uint16_t Length)  // esta funcion recibe los datos que llegaron y la longitud de los datos que llegaron
 {
     uint8_t byteFN = ByteArray[MB_SER_FUNC]; // maquina de estado
     UINT16_VAL Start;
@@ -35,7 +35,7 @@ void modbusSerial(uint8_t *ByteArray, uint16_t Length)
 
             break;
 
-        case MB_FC_READ_REGISTERS: // 03 Read Holding Registers
+        case MB_FC_READ_REGISTERS: // 03 Read Holding Registers - Lee los registros internos del Modbus
 
             // direccion de cominzo Modbus
             Start.byte.HB = ByteArray[2];
@@ -65,7 +65,7 @@ void modbusSerial(uint8_t *ByteArray, uint16_t Length)
 
             break;
 
-        case MB_FC_READ_INPUT_REGISTERS: // 04 Read Input Registers Registers
+        case MB_FC_READ_INPUT_REGISTERS: // 04 Read Input Registers Registers - Lee datos de entrada como los ADC
                                          // direccion de cominzo Modbus
             Start.byte.HB = ByteArray[2];
             Start.byte.LB = ByteArray[3];

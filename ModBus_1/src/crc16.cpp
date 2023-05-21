@@ -1,7 +1,7 @@
 
 #include "crc16.h"
 
-uint16_t CRC16(const uint8_t *nData, uint16_t wLength)
+uint16_t CRC16(const uint8_t *nData, uint16_t wLength) // Es un sistema para chequeo de errores en protocolos o tramas. 
 {
   static const uint16_t wCRCTable[] = {
       0X0000, 0XC0C1, 0XC181, 0X0140, 0XC301, 0X03C0, 0X0280, 0XC241,

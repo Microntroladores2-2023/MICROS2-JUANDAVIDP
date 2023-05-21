@@ -1,5 +1,6 @@
 #include <Arduino.h>
 
+// Estructuras para poder accesar por bit o por byte
 typedef struct
 {
     uint8_t b0 : 1;
