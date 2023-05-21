@@ -18,14 +18,16 @@ void TareaEventosUART0(void *Parametro)
 
     for (;;)
     {
-        if (xQueueReceive(uart0_queue, (void *)&evento, (TickType_t)portMAX_DELAY))
+        if (xQueueReceive(uart0_queue, (void *)&evento, (TickType_t)portMAX_DELAY)) // Cola de donde viene datoRX
         {
             bzero(datoRX, tamBUFFER);
             if (evento.type == UART_DATA)
             {
-                uart_read_bytes(UART_NUM_0, datoRX, evento.size, portMAX_DELAY);
+                uart_read_bytes(UART_NUM_0, datoRX, evento.size, portMAX_DELAY); // funcion para llenar los datos en datoRX (puntero que recibe los datos)
                 
-                modbusSerial(datoRX, evento.size);
+                modbusSerial(datoRX, evento.size); // manda un puntero con los datos que se recibe 
+                                                   // evento.size dice cuantos datos llegaron
+                                                   // datoRX y el tamaño de los datos evento.size se envia a esta funcion
 
             }
         }
@@ -48,7 +50,7 @@ void initUART0()
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         //.source_clk = UART_SCLK_DEFAULT,
     };
-    configUART0.baud_rate=9600;
+    configUART0.baud_rate=115200;
     
     uart_param_config(UART_NUM_0, &configUART0);
     uart_set_pin(UART_NUM_0, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
