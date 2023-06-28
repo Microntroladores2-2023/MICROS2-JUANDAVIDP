@@ -2,12 +2,20 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include "freertos/queue.h"
+#include "DHT.h"
+#include <Adafruit_Sensor.h>
 
 TaskHandle_t xHandle_http_task = NULL;
 TaskHandle_t xHandle_entrada_datos = NULL;
 
 QueueHandle_t queue;
 
+#define DHT1_PIN 18 // Pin del sensor DHT11 1
+#define DHT2_PIN 19 // Pin del sensor DHT11 2
+#define DHT_TYPE DHT11 // Tipo de sensor DHT11
+
+DHT dht1(DHT1_PIN, DHT_TYPE);
+DHT dht2(DHT2_PIN, DHT_TYPE);
 
 //**************************************
 //*************** TASKs ****************
@@ -20,36 +28,34 @@ void TaskEntradaDatos(void* pvParameters) {
   if (queue == 0) {
     printf("Failed to create queue= %p\n", queue);
   }
-  txBuffer[2] = -20;
-  txBuffer[3] = -30;
 
   while (1) {
-    txBuffer[0] = random(100);
-    txBuffer[1] = random(100);
-    txBuffer[2]++;
-    txBuffer[3]++;
+    float temperature1 = dht1.readTemperature();
+    float humidity1 = dht1.readHumidity();
+    float temperature2 = dht2.readTemperature();
+    float humidity2 = dht2.readHumidity();
 
-    if (txBuffer[2] == 20) {
-      txBuffer[2] = -20;
-      txBuffer[3] = -30;
-    }
+    txBuffer[0] = temperature1;
+    txBuffer[1] = humidity1;
+    txBuffer[2] = temperature2;
+    txBuffer[3] = humidity2;
 
     xQueueSend(queue, (void*)txBuffer, (TickType_t)0);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(1000 / portTICK_PERIOD_MS); // Delay para tomar una nueva lectura cada 2 segundos
   }
 }
 
 void TaskHTTP(void* pvParameters) {
 
   // Scada Vemetris en Digital Ocean
-  String ScadaVemetris = "http://137.184.178.17:21486/httpds?__device=TestJose";
+  String ScadaVemetris = "http://137.184.178.17:21486/httpds?__device=MonitorJuan";
 
   float rxBuffer[10];
 
   while (1) {
 
     if (xQueueReceive(queue, &(rxBuffer), (TickType_t)5)) {
-      
+
       HTTPClient http;
 
       String dato1 = String(rxBuffer[0]);
@@ -70,12 +76,12 @@ void TaskHTTP(void* pvParameters) {
         Serial.println(httpCode);           // Si el codigo es 200, se realizo bien
         Serial.println(payload);            // Mostrar respuesta por serial
       } else {
-        Serial.println("Error enviadno la trama");
+        Serial.println("Error enviando la trama");
       }
       http.end();  // Se libera el cliente
 
 
-      vTaskDelay(5000 / portTICK_PERIOD_MS);
+      vTaskDelay(5000 / portTICK_PERIOD_MS); // Delay para enviar una nueva trama cada 5 segundos
     }
   }
 }
@@ -101,6 +107,9 @@ void setup() {
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
   initWiFi();
+
+  dht1.begin();
+  dht2.begin();
 
   xTaskCreatePinnedToCore(TaskEntradaDatos, "EntradaDatos", 4096, NULL, 2, &xHandle_entrada_datos, 1);
 
