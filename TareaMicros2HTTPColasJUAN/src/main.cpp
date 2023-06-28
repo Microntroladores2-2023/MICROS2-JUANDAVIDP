@@ -6,9 +6,11 @@
 #include <Adafruit_Sensor.h>
 
 TaskHandle_t xHandle_http_task = NULL;
-TaskHandle_t xHandle_entrada_datos = NULL;
+TaskHandle_t xHandle_entrada_datos1 = NULL;
+TaskHandle_t xHandle_entrada_datos2 = NULL;
+TaskHandle_t xHandle_procesamiento_datos = NULL;
 
-QueueHandle_t queue;
+QueueHandle_t queue1, queue2;
 
 #define DHT1_PIN 18 // Pin del sensor DHT11 1
 #define DHT2_PIN 19 // Pin del sensor DHT11 2
@@ -21,50 +23,66 @@ DHT dht2(DHT2_PIN, DHT_TYPE);
 //*************** TASKs ****************
 //**************************************
 
-void TaskEntradaDatos(void* pvParameters) {
+void TaskEntradaDatos1(void* pvParameters) {
 
-  float txBuffer[10];
-  queue = xQueueCreate(5, sizeof(txBuffer));
-  if (queue == 0) {
-    printf("Failed to create queue= %p\n", queue);
+  float txBuffer[2];
+  queue1 = xQueueCreate(5, sizeof(txBuffer));
+  if (queue1 == 0) {
+    printf("Failed to create queue= %p\n", queue1);
   }
 
   while (1) {
     float temperature1 = dht1.readTemperature();
     float humidity1 = dht1.readHumidity();
-    float temperature2 = dht2.readTemperature();
-    float humidity2 = dht2.readHumidity();
 
     txBuffer[0] = temperature1;
     txBuffer[1] = humidity1;
-    txBuffer[2] = temperature2;
-    txBuffer[3] = humidity2;
 
-    xQueueSend(queue, (void*)txBuffer, (TickType_t)0);
-    vTaskDelay(500 / portTICK_PERIOD_MS); // Delay para tomar una nueva lectura cada 2 segundos
+    xQueueSend(queue1, (void*)txBuffer, (TickType_t)0);
+    vTaskDelay(500 / portTICK_PERIOD_MS); // Delay para tomar una nueva lectura cada 0.5 segundos
   }
 }
 
-void TaskHTTP(void* pvParameters) {
+void TaskEntradaDatos2(void* pvParameters) {
+
+  float txBuffer[2];
+  queue2 = xQueueCreate(5, sizeof(txBuffer));
+  if (queue2 == 0) {
+    printf("Failed to create queue= %p\n", queue2);
+  }
+
+  while (1) {
+    float temperature2 = dht2.readTemperature();
+    float humidity2 = dht2.readHumidity();
+
+    txBuffer[0] = temperature2;
+    txBuffer[1] = humidity2;
+
+    xQueueSend(queue2, (void*)txBuffer, (TickType_t)0);
+    vTaskDelay(500 / portTICK_PERIOD_MS); // Delay para tomar una nueva lectura cada 0.5 segundos
+  }
+}
+
+void TaskProcesamientoDatos(void* pvParameters) {
 
   // Scada Vemetris en Digital Ocean
   String ScadaVemetris = "http://137.184.178.17:21486/httpds?__device=MonitorJuan";
 
-  float rxBuffer[10];
+  float rxBuffer1[2], rxBuffer2[2];
 
   while (1) {
 
-    if (xQueueReceive(queue, &(rxBuffer), (TickType_t)5)) {
+    if (xQueueReceive(queue1, &(rxBuffer1), (TickType_t)5) == pdTRUE && xQueueReceive(queue2, &(rxBuffer2), (TickType_t)5) == pdTRUE) {
 
       HTTPClient http;
 
-      String dato1 = String(rxBuffer[0]);
+      String dato1 = String(rxBuffer1[0]);
 
-      String dato2 = String(rxBuffer[1]);
+      String dato2 = String(rxBuffer1[1]);
 
-      String dato3 = String(rxBuffer[2]);
+      String dato3 = String(rxBuffer2[0]);
 
-      String dato4 = String(rxBuffer[3]);
+      String dato4 = String(rxBuffer2[1]);
 
       String Trama = ScadaVemetris + "&rssi=" + WiFi.RSSI() + "&dato1=" + dato1 + "&dato2=" + dato2 + "&dato3=" + dato3 + "&dato4=" + dato4;
 
@@ -96,8 +114,9 @@ void initWiFi(void) {
 
   while (WiFi.status() != WL_CONNECTED) {
     vTaskDelay(500 / portTICK_PERIOD_MS);
-    Serial.println("Configurando Red Wi-Fi");
+    Serial.println("Conectando a la red WiFi...");
   }
+  Serial.println("Conectado ala red WiFi!");
 }
 
 
@@ -111,9 +130,9 @@ void setup() {
   dht1.begin();
   dht2.begin();
 
-  xTaskCreatePinnedToCore(TaskEntradaDatos, "EntradaDatos", 4096, NULL, 2, &xHandle_entrada_datos, 1);
-
-  xTaskCreatePinnedToCore(TaskHTTP, "HTTPcliente", 4096, NULL, 4, &xHandle_http_task, 1);
+  xTaskCreatePinnedToCore(TaskEntradaDatos1, "EntradaDatos1", 4096, NULL, 2, &xHandle_entrada_datos1, 1);
+  xTaskCreatePinnedToCore(TaskEntradaDatos2, "EntradaDatos2", 4096, NULL, 2, &xHandle_entrada_datos2, 1);
+  xTaskCreatePinnedToCore(TaskProcesamientoDatos, "ProcesamientoDatos", 4096, NULL, 4, &xHandle_procesamiento_datos, 1);
 }
 
 void loop() {
