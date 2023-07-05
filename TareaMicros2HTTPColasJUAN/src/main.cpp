@@ -5,12 +5,13 @@
 #include "DHT.h"
 #include <Adafruit_Sensor.h>
 
+// Tareas
 TaskHandle_t xHandle_http_task = NULL;
 TaskHandle_t xHandle_entrada_datos1 = NULL;
 TaskHandle_t xHandle_entrada_datos2 = NULL;
 TaskHandle_t xHandle_procesamiento_datos = NULL;
 
-QueueHandle_t queue1, queue2;
+QueueHandle_t queue1, queue2; // Almacena los datos de los sensores y los transfiere entre las tareas
 
 #define DHT1_PIN 18 // Pin del sensor DHT11 1
 #define DHT2_PIN 19 // Pin del sensor DHT11 2
@@ -26,19 +27,19 @@ DHT dht2(DHT2_PIN, DHT_TYPE);
 void TaskEntradaDatos1(void* pvParameters) {
 
   float txBuffer[2];
-  queue1 = xQueueCreate(5, sizeof(txBuffer));
+  queue1 = xQueueCreate(5, sizeof(txBuffer));  // se crea la cola que puede almacenar hasta 5 elementos de 2 cada uno
   if (queue1 == 0) {
     printf("Failed to create queue= %p\n", queue1);
   }
 
   while (1) {
-    float temperature1 = dht1.readTemperature();
+    float temperature1 = dht1.readTemperature(); // Lectura de datos del sensor 1
     float humidity1 = dht1.readHumidity();
 
-    txBuffer[0] = temperature1;
+    txBuffer[0] = temperature1; // almacenamiento de datos del sensor en buffer
     txBuffer[1] = humidity1;
 
-    xQueueSend(queue1, (void*)txBuffer, (TickType_t)0);
+    xQueueSend(queue1, (void*)txBuffer, (TickType_t)0); // envio del arreglo a la cola 
     vTaskDelay(500 / portTICK_PERIOD_MS); // Delay para tomar una nueva lectura cada 0.5 segundos
   }
 }
@@ -66,15 +67,19 @@ void TaskEntradaDatos2(void* pvParameters) {
 void TaskProcesamientoDatos(void* pvParameters) {
 
   // Scada Vemetris en Digital Ocean
-  String ScadaVemetris = "http://137.184.178.17:21486/httpds?__device=MonitorJuan";
+  String ScadaVemetris = "http://137.184.178.17:21486/httpds?__device=MonitorJuan"; // definicion del url del servidor
 
-  float rxBuffer1[2], rxBuffer2[2];
+  float rxBuffer1[2], rxBuffer2[2]; // definicion de arreglos para almacenar datos de las colas
 
   while (1) {
 
+
+     // Se verifica si se recibieron datos de ambas colas
     if (xQueueReceive(queue1, &(rxBuffer1), (TickType_t)5) == pdTRUE && xQueueReceive(queue2, &(rxBuffer2), (TickType_t)5) == pdTRUE) {
 
       HTTPClient http;
+
+      // Se convierten los datos a cadenas de texto para el envio al servidor
 
       String dato1 = String(rxBuffer1[0]);
 
@@ -87,8 +92,8 @@ void TaskProcesamientoDatos(void* pvParameters) {
       String Trama = ScadaVemetris + "&rssi=" + WiFi.RSSI() + "&dato1=" + dato1 + "&dato2=" + dato2 + "&dato3=" + dato3 + "&dato4=" + dato4;
 
       Serial.println(Trama);
-      http.begin(Trama);          //Iniciar conexión
-      int httpCode = http.GET();  // Realizar petición
+      http.begin(Trama);          //Iniciar conexión con el servidor
+      int httpCode = http.GET();  // Realizar petición para enviar datos al servidor
       if (httpCode > 0) {
         String payload = http.getString();  // Obtener respuesta
         Serial.println(httpCode);           // Si el codigo es 200, se realizo bien
